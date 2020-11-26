@@ -38,7 +38,7 @@ class BaiduJinyanPipeline(object):
 class BaiduJinyanMysql(object):
     def __init__(self):
         # 建立连接
-        self.conn = pymysql.connect('localhost', 'root', '123456', 'funnydb',charset='utf8')  # 有中文要存入数据库的话要加charset='utf8'
+        self.conn = pymysql.connect('localhost', 'root', '123456', 'funnydb',charset='utf8mb4')  # 有中文要存入数据库的话要加charset='utf8'
         # 创建游标
         self.cursor = self.conn.cursor()
 

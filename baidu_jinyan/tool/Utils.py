@@ -18,13 +18,13 @@ class Utils(object):
         self.remover = WatermarkRemover()
         self.remover.load_watermark_template(watermark_template)
 
-    def translate_to_es(self, context):
+    def translate_to_es(self,context,link):
         """翻译成西班牙语并返回"""
         text_es = '翻译失败'
         try:
             text_es = self.translator.translate(context, src='zh-cn', dest='es').text
         except Exception as e:
-            self.save_file('log.txt',"翻译失败报错：\n" + traceback.format_exc())
+            self.save_file('log.txt',"翻译失败报错：" + link + "\n" + traceback.format_exc())
         return text_es
 
     def wipe_lm(self, origin_pic,new_pic_file):
@@ -39,13 +39,16 @@ class Utils(object):
             return ''
         return urlretrieve(url,file_path + "image.jpg")
 
-    def base64_image(self,imageUrls):
+    def base64_image(self,imageUrls,link):
         base64_images = []
+        # return base64_images
         i = 1;
         if len(imageUrls) == 0 :
             return []
         try:
             for imageUrl in imageUrls:
+                if imageUrl == '':
+                    continue
                 fileName = str(i)
                 urlretrieve(imageUrl, fileName + ".jpg")
                 self.wipe_lm(fileName + ".jpg",fileName + "_new.jpg")
@@ -58,7 +61,7 @@ class Utils(object):
                 os.remove(fileName + "_new.jpg")
                 i = i + 1
         except Exception as e:
-            self.save_file('log.txt',"图片base64失败报错：" + imageUrl + "\n" +traceback.format_exc())
+            self.save_file('log.txt',"图片base64失败报错：" + link + "\n" +traceback.format_exc())
         return base64_images
 
     def save_file(self,file_name,content):
@@ -71,4 +74,4 @@ class Utils(object):
 if __name__ == '__main__':
     utils = Utils("../baidu.jpg")
     # utils.wipe_lm("../img/image.jpg")
-    print(utils.translate_to_es("冬寒菜 500克"))
+    # print(utils.translate_to_es("冬寒菜 500克"))

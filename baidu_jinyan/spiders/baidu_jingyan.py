@@ -68,7 +68,7 @@ class BaiduJingyanSpider(scrapy.Spider):
                         'type_item': type_item
                     })
             else: #其他剩下的分类    由于百度经验有做了反扒图片认证，
-                pass
+                # pass
 
                 # 由于百度经验有做了反扒图片验证，所以这里就一个分类一个分类的爬，后面自己入随机UA 和 http代理这里就可以去掉了
                 # if i == 8:
@@ -103,7 +103,7 @@ class BaiduJingyanSpider(scrapy.Spider):
                 'content_listblock_text': '',
                 'imgcontent_listblock_images_url': ''
             })
-        if '全部' not in response.meta['type_item']:
+        if '全部' not in type_item:
             for url in self.page_url(response):
                 yield scrapy.Request(url=url, method='GET', callback=self.parse_page_type_item, meta={
                     'type': response.meta['type'],
@@ -169,21 +169,21 @@ class BaiduJingyanSpider(scrapy.Spider):
                         elementObj = dict(text=element.css('.content-list-text p::text').extract_first(default=''),
                                           images=element.css('.content-list-media img::attr(data-src)').extract())
 
-                        elementObjTra = dict(text=utils.translate_to_es(element.css('.content-list-text p::text').extract_first(default='')),
-                                          images=utils.base64_image(element.css('.content-list-media img::attr(data-src)').extract()))
+                        elementObjTra = dict(text=utils.translate_to_es(element.css('.content-list-text p::text').extract_first(default=''),str.strip(response.url)),
+                                          images=utils.base64_image(element.css('.content-list-media img::attr(data-src)').extract(),str.strip(response.url)))
                     else:
                         elementObj = dict(text=element.css('.content-list-text::text').extract_first(default=''),
                                           images=element.css('.content-list-media img::attr(data-src)').extract())
-                        elementObjTra = dict(text=utils.translate_to_es(element.css('.content-list-text::text').extract_first(default='')),
-                                          images=utils.base64_image(element.css('.content-list-media img::attr(data-src)').extract()))
+                        elementObjTra = dict(text=utils.translate_to_es(element.css('.content-list-text::text').extract_first(default=''),str.strip(response.url)),
+                                          images=utils.base64_image(element.css('.content-list-media img::attr(data-src)').extract(),str.strip(response.url)))
                     elements.append(elementObj)
                     elementsTra.append(elementObjTra)
                 sublist.append(dict(subtitle=subTitle, element=elements))
-                sublistTra.append(dict(subtitle=utils.translate_to_es(subTitle), element=elementsTra))
+                sublistTra.append(dict(subtitle=utils.translate_to_es(subTitle,str.strip(response.url)), element=elementsTra))
             exp_conent_block_index = exp_conent_block_index + 1
         obj = dict(title=exp_title, summary=content_listblock_text, image=content_listblock_images,content =sublist )
-        objTra = dict(title=utils.translate_to_es(exp_title), summary=utils.translate_to_es(content_listblock_text),
-                   image=utils.base64_image(content_listblock_images), content=sublistTra)
+        objTra = dict(title=utils.translate_to_es(exp_title,str.strip(response.url)), summary=utils.translate_to_es(content_listblock_text,str.strip(response.url)),
+                   image=utils.base64_image([content_listblock_images],str.strip(response.url)), content=sublistTra)
         content = json.dumps(obj,ensure_ascii=False)
         contentTra = json.dumps(objTra,ensure_ascii=False)
         item = BaiduJinyanItem()
