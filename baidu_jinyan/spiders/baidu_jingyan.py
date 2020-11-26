@@ -2,18 +2,17 @@
 import scrapy
 from googletrans import Translator
 #https://jingyan.baidu.com/vertify.html
-from baidu_jinyan import MyTool
+#from baidu_jinyan import MyTool
 from baidu_jinyan.items import BaiduJinyanItem
+import json
+import os
+from Utils import Utils
 
 
 class BaiduJingyanSpider(scrapy.Spider):
     name = 'baidu_jingyan'
     allowed_domains = ['jingyan.baidu.com']
     start_urls = ['https://jingyan.baidu.com/']
-    doneUrlList = []
-    translator = Translator()
-    # def start_requests(self):
-    #     yield scrapy.Request(url='https://jingyan.baidu.com/article/afd8f4de2edb8734e286e9a7.html', callback=self.parse_item_food)
 
     def parse(self, response):
         # jingyanTypes = response.css('.sub-menu sub-menu-category').extract()
@@ -24,11 +23,11 @@ class BaiduJingyanSpider(scrapy.Spider):
             type = sub_menu.css('li a::text').extract_first()
             href = sub_menu.css('li a::attr(href)').extract_first()
             href = self.http_check(href)
-            if index == 1:   #美食/营养
-                yield scrapy.Request(url=href, method='GET', callback=self.parse_type, meta={
-                    'type': type,
-                    'type_item': "全部"
-                })
+            # if index == 0:   #美食/营养
+            yield scrapy.Request(url=href, method='GET', callback=self.parse_type, meta={
+                'type': type,
+                'type_item': "全部"
+            })
             index = index + 1
 
 
@@ -69,7 +68,7 @@ class BaiduJingyanSpider(scrapy.Spider):
                         'type_item': type_item
                     })
             else: #其他剩下的分类    由于百度经验有做了反扒图片认证，
-                # pass
+                pass
 
                 # 由于百度经验有做了反扒图片验证，所以这里就一个分类一个分类的爬，后面自己入随机UA 和 http代理这里就可以去掉了
                 # if i == 8:
@@ -116,7 +115,7 @@ class BaiduJingyanSpider(scrapy.Spider):
         wgt_list = wgt_main.css('li')
         type = response.meta['type']
         type_item = response.meta['type_item']
-        #if '西点'in type_item: #测试条件先选择一种之类
+        # if '主食'in type_item: #测试条件先选择一种之类
         for wgt_list_item in wgt_list:
             href = self.http_check(wgt_list_item.css('.exp-link::attr(href)').extract_first())
             img_url = wgt_list_item.css('.exp-link .exp-cover .lazy-load-img::attr(data-src)').extract_first()
@@ -140,55 +139,62 @@ class BaiduJingyanSpider(scrapy.Spider):
         # print(exp_title, update_time)
 
         content_listblock_text = response.css('.content-listblock-text p::text').extract_first(default='')
-        content_listblock_images = response.css('.content-listblock-image img::attr(data-src)').extract_first(
-            default='')
-        # print(content_listblock_text, content_listblock_images)
+        content_listblock_images = response.xpath('//*[@id="format-exp"]/div[1]/div/div/div[2]/div/a/img/@data-src').extract_first(default='')
+
         response.meta['exp_title'] = exp_title
         response.meta['update_time'] = update_time
         response.meta['content_listblock_text'] = content_listblock_text
         response.meta['content_listblock_images'] = content_listblock_images
 
-        exp_content_food_rl = response.css('h2::text').extract_first(default='')
-        exp_content_food_rl_con = response.css('.exp-content-food-rl-con::text').extract_first(default='')
-        food_tool_main = response.css('.food-tool-main span::text').extract()
-        food_tool_other = response.css('.food-tool-other span::text').extract()
-        food_text = []
-        if len(food_tool_main) == 0 and len(food_tool_other) == 0:
-            content_list_text = response.xpath('//*[@id="format-exp"]/div[2]').css(
-                '.exp-content-unorderlist .exp-content-list')
-            for content_list_text_item in content_list_text:
-                food_text.append(content_list_text_item.css('.content-list-text::text').extract_first(default='') +
-                                 content_list_text_item.css('span::text').extract_first(default=''))
-        else:
-            food_text.extend(food_tool_main)
-            food_text.extend(food_tool_other)
+        utils = Utils('F:\\python\\PycharmProjects\\baidu_jinyan\\baidu_jinyan\\baidu.jpg')
 
-        exp_conent_orderlist = response.css('.exp-content-list')
-        exp_content_list_all = []
-        for exp_content_list in exp_conent_orderlist:
-            exp_content_dic = {}
-            exp_content_dic['order'] = exp_content_list.css('.list-icon::text').extract_first(default='')
-            exp_content_dic['text'] = exp_content_list.css('p::text').extract_first(default='')
-            exp_content_dic['image'] = exp_content_list.css('img::attr(data-src)').extract_first(default='')
-            if exp_content_dic['order'] != '' or exp_content_dic['text'] != '' or exp_content_dic['image'] != '':
-                exp_content_list_all.append(exp_content_dic)
-        # self.myList.append(response.meta['exp_title'])
+        exp_conent_blocks = response.css('.exp-content-block')
+        exp_conent_block_index = 0
+        sublist = []
+        sublistTra = []
+        for exp_conent_block in exp_conent_blocks:
+            subTitle = exp_conent_block.css('.exp-content-head::text').extract_first(default='')
+            elementlist = {}
+            elements = []
+            elementsTra = []
+            if exp_conent_block_index != 0 and exp_conent_block_index < 4:
+                if exp_conent_block_index == 1 or exp_conent_block_index == 3:
+                    elementlist = exp_conent_block.css('.exp-content-unorderlist li')
+                    if len(elementlist) == 0:
+                        elementlist = exp_conent_block.css('.exp-conent-orderlist li')
+                elif exp_conent_block_index == 2:
+                    elementlist = exp_conent_block.css('.exp-conent-orderlist li')
+                for element in elementlist:
+                    if exp_conent_block_index == 2:
+                        elementObj = dict(text=element.css('.content-list-text p::text').extract_first(default=''),
+                                          images=element.css('.content-list-media img::attr(data-src)').extract())
+
+                        elementObjTra = dict(text=utils.translate_to_es(element.css('.content-list-text p::text').extract_first(default='')),
+                                          images=utils.base64_image(element.css('.content-list-media img::attr(data-src)').extract()))
+                    else:
+                        elementObj = dict(text=element.css('.content-list-text::text').extract_first(default=''),
+                                          images=element.css('.content-list-media img::attr(data-src)').extract())
+                        elementObjTra = dict(text=utils.translate_to_es(element.css('.content-list-text::text').extract_first(default='')),
+                                          images=utils.base64_image(element.css('.content-list-media img::attr(data-src)').extract()))
+                    elements.append(elementObj)
+                    elementsTra.append(elementObjTra)
+                sublist.append(dict(subtitle=subTitle, element=elements))
+                sublistTra.append(dict(subtitle=utils.translate_to_es(subTitle), element=elementsTra))
+            exp_conent_block_index = exp_conent_block_index + 1
+        obj = dict(title=exp_title, summary=content_listblock_text, image=content_listblock_images,content =sublist )
+        objTra = dict(title=utils.translate_to_es(exp_title), summary=utils.translate_to_es(content_listblock_text),
+                   image=utils.base64_image(content_listblock_images), content=sublistTra)
+        content = json.dumps(obj,ensure_ascii=False)
+        contentTra = json.dumps(objTra,ensure_ascii=False)
         item = BaiduJinyanItem()
-
         item['url'] = str.strip(response.url)
         item['type'] = str.strip(response.meta['type'])
-        item['exp_title'] = str.strip(response.meta['exp_title'])
         if '全部' in response.meta['type_item']:
             item['type_item'] = '精选'
         else:
             item['type_item'] = str.strip(response.meta['type_item'])
-        item['update_time'] = str.strip(response.meta['update_time'])
-        item['content_listblock_text'] = str.strip(response.meta['content_listblock_text'])
-        item['content_listblock_images'] = str.strip(response.meta['content_listblock_images'])
-        item['exp_content_food_rl'] = exp_content_food_rl
-        item['food_text'] = food_text
-        item['exp_content_food_rl_con'] = exp_content_food_rl_con
-        item['exp_content_list_all'] = exp_content_list_all
+        item['original'] = content
+        item['translate'] = contentTra
         yield item
 
 

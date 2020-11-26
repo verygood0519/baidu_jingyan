@@ -65,7 +65,7 @@ DEFAULT_REQUEST_HEADERS = {
 # Configure item pipelines
 # See http://scrapy.readthedocs.org/en/latest/topics/item-pipeline.html
 ITEM_PIPELINES = {
-   'baidu_jinyan.pipelines.BaiduJinyanPipeline': 300,
+   'baidu_jinyan.pipelines.BaiduJinyanMysql': 300,
 }
 
 # Enable and configure the AutoThrottle extension (disabled by default)

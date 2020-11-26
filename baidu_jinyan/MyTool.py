@@ -36,7 +36,8 @@ def file_name(file_dir):
 def down_image(url,file_path):
     names = url.split('/')
     name = names[len(names) - 1]
-    print(urlretrieve(url,file_path + name))
+    print(name)
+    print(urlretrieve(url,file_path + "i.jpg"))
 
 #翻译
 def my_trans(translator,text):
@@ -85,8 +86,9 @@ def change_Image_to_text(img):
 
 if __name__ == '__main__':
     # file_name('img')
-    # down_image('https://imgsa.baidu.com/exp/w=500/sign=60fbeb9270d98d1076d40c31113fb807/ca1349540923dd541868da06dd09b3de9c824840.jpg','img/')
+    #down_image('https://imgsa.baidu.com/exp/w=500/sign=60fbeb9270d98d1076d40c31113fb807/ca1349540923dd541868da06dd09b3de9c824840.jpg','img/')
+    down_image('https://exp-picture.cdn.bcebos.com/6a408cdd3340b6f375d541aa12c0affce086eee8.jpg?x-bce-process=image%2Fresize%2Cm_lfit%2Cw_500%2Climit_1','img/')
     # print(pytesseract.image_to_string(Image.open()))
-    img = convert_Image(getImage('img/test.png'))
-    img.save('img/test2.png')
-    print('识别的结果：', change_Image_to_text(img))
+    # img = convert_Image(getImage('img/test.png'))
+    # img.save('img/test2.png')
+    # print('识别的结果：', change_Image_to_text(img))

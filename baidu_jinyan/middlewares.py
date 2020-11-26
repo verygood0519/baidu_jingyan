@@ -4,9 +4,10 @@
 #
 # See documentation in:
 # http://doc.scrapy.org/en/latest/topics/spider-middleware.html
+import random
 
 from scrapy import signals
-
+from useragent import agents
 
 class BaiduJinyanSpiderMiddleware(object):
     # Not all methods need to be defined. If a method is not defined,
@@ -25,6 +26,8 @@ class BaiduJinyanSpiderMiddleware(object):
         # middleware and into the spider.
 
         # Should return None or raise an exception.
+        if 'google' in response.url:
+            print('dddd')
         return None
 
     def process_spider_output(self, response, result, spider):
@@ -50,6 +53,12 @@ class BaiduJinyanSpiderMiddleware(object):
 
         # Must return only requests (not items).
         for r in start_requests:
+            # 设置user-agent
+            agent = random.choice(agents)
+            r.headers["User-Agent"] = agent
+            # # 设置proxy
+            # r.meta["proxy"] = proxyServer
+            # r.headers["Proxy-Authorization"] = proxyAuth
             yield r
 
     def spider_opened(self, spider):
