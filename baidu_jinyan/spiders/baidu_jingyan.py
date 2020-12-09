@@ -6,7 +6,7 @@ from googletrans import Translator
 from baidu_jinyan.items import BaiduJinyanItem
 import json
 import os
-from Utils import Utils
+from baidu_jinyan.tool.Utils import Utils
 
 
 class BaiduJingyanSpider(scrapy.Spider):
@@ -19,15 +19,28 @@ class BaiduJingyanSpider(scrapy.Spider):
         sub_menus = response.xpath('//*[@id="nav-wrap"]/ul/li[2]/div/ul')
         sub_menus = sub_menus.css('.sub-menu-item-box')
         index = 0
+        #测试详细页
+        # surl = 'https://jingyan.baidu.com/article/0320e2c1e24a615a86507b62.html'
+        # yield scrapy.Request(url=surl, callback=self.parse_item, meta={
+        #     'type': 'type',
+        #     'type_item': 'type_item',
+        #     'title': 'title',
+        #     'img_url': '',
+        #     'exp_title': '',
+        #     'update_time': '',
+        #     'content_listblock_text': '',
+        #     'imgcontent_listblock_images_url': ''
+        # })
+
         for sub_menu in sub_menus:
             type = sub_menu.css('li a::text').extract_first()
             href = sub_menu.css('li a::attr(href)').extract_first()
             href = self.http_check(href)
-            # if index == 0:   #美食/营养
-            yield scrapy.Request(url=href, method='GET', callback=self.parse_type, meta={
-                'type': type,
-                'type_item': "全部"
-            })
+            if index == 0:
+                yield scrapy.Request(url=href, method='GET', callback=self.parse_type, meta={
+                    'type': type,
+                    'type_item': "全部"
+                })
             index = index + 1
 
 
@@ -41,12 +54,14 @@ class BaiduJingyanSpider(scrapy.Spider):
             href = cate_list_item.css('.m-rnd a::attr(href)').extract_first()
             href = self.http_check(href)
             if i == 0:   #单独爬全部这个分类  后面存在MongoDB的时候会把他命名为精品
-                # pass
+                # i = i + 1
+                # continue
                 wgt_main = response.xpath('//*[@id="img-list"]/ul')
                 wgt_list = wgt_main.css('li')
                 type = response.meta['type']
                 type_item = response.meta['type_item']
                 for wgt_list_item in wgt_list:
+
                     href = self.http_check(wgt_list_item.css('.exp-link::attr(href)').extract_first())
                     img_url = wgt_list_item.css('.exp-link .exp-cover .lazy-load-img::attr(data-src)').extract_first()
                     title = wgt_list_item.css('.exp-link .exp-info .exp-title::text').extract_first()
@@ -61,7 +76,7 @@ class BaiduJingyanSpider(scrapy.Spider):
                         'update_time': '',
                         'content_listblock_text': '',
                         'imgcontent_listblock_images_url': ''
-                    })
+                    },dont_filter=True)
                 for url in self.page_url(response):
                     yield scrapy.Request(url=url, method='GET', callback=self.parse_type_item, meta={
                         'type': type,
@@ -76,10 +91,28 @@ class BaiduJingyanSpider(scrapy.Spider):
                 #         'type': type,
                 #         'type_item': type_item
                 #     })
-                yield scrapy.Request(url=href, method='GET', callback=self.parse_type_item, meta={
+                #if i == 1:
+                yield scrapy.Request(url=href, method='GET', callback=self.parse_type_c,meta={
                     'type': type,
                     'type_item': type_item
                 })
+            i = i + 1
+
+    def parse_type_c(self,response):
+        urls = [response.url] + response.xpath('//*[@id="cat-outer"]/div[2]/ul/li/a/@href').extract()
+        items = response.xpath('//*[@id="cat-outer"]/div[2]/ul/li/a/text()').extract()
+        i = 0
+        for url in urls:
+            if self.start_urls[0] not in url:
+                url = self.start_urls[0] + url
+            if i > 0:
+                type_item = response.meta['type_item'].replace('\n','') + '/' + items[i - 1]
+            else:
+                type_item = response.meta['type_item']
+            yield scrapy.Request(url=url, method='GET', callback=self.parse_type_item, meta={
+                'type': response.meta['type'],
+                'type_item': type_item
+            },dont_filter=True)
             i = i + 1
 
     def parse_type_item(self, response):
@@ -102,7 +135,7 @@ class BaiduJingyanSpider(scrapy.Spider):
                 'update_time': '',
                 'content_listblock_text': '',
                 'imgcontent_listblock_images_url': ''
-            })
+            },dont_filter=True)
         if '全部' not in type_item:
             for url in self.page_url(response):
                 yield scrapy.Request(url=url, method='GET', callback=self.parse_page_type_item, meta={
@@ -130,7 +163,7 @@ class BaiduJingyanSpider(scrapy.Spider):
                 'update_time': '',
                 'content_listblock_text': '',
                 'imgcontent_listblock_images_url': ''
-            })
+            },dont_filter=True)
 
     #具体的子内容页面
     def parse_item(self,response):
@@ -138,8 +171,8 @@ class BaiduJingyanSpider(scrapy.Spider):
         update_time = response.css('time::text').extract_first(default='')
         # print(exp_title, update_time)
 
-        content_listblock_text = response.css('.content-listblock-text p::text').extract_first(default='')
-        content_listblock_images = response.xpath('//*[@id="format-exp"]/div[1]/div/div/div[2]/div/a/img/@data-src').extract_first(default='')
+        content_listblock_text = ';'.join(response.css('.content-listblock-text p::text').extract())
+        content_listblock_images = response.xpath('//*[@id="format-exp"]/div[1]/div/div/div[2]/div/a/img/@data-src').extract()
 
         response.meta['exp_title'] = exp_title
         response.meta['update_time'] = update_time
@@ -147,6 +180,7 @@ class BaiduJingyanSpider(scrapy.Spider):
         response.meta['content_listblock_images'] = content_listblock_images
 
         utils = Utils('F:\\python\\PycharmProjects\\baidu_jinyan\\baidu_jinyan\\baidu.jpg')
+        # utils = Utils()
 
         exp_conent_blocks = response.css('.exp-content-block')
         exp_conent_block_index = 0
@@ -157,25 +191,17 @@ class BaiduJingyanSpider(scrapy.Spider):
             elementlist = {}
             elements = []
             elementsTra = []
-            if exp_conent_block_index != 0 and exp_conent_block_index < 4:
-                if exp_conent_block_index == 1 or exp_conent_block_index == 3:
-                    elementlist = exp_conent_block.css('.exp-content-unorderlist li')
-                    if len(elementlist) == 0:
-                        elementlist = exp_conent_block.css('.exp-conent-orderlist li')
-                elif exp_conent_block_index == 2:
+            if exp_conent_block_index != 0 : #and exp_conent_block_index < 4
+                elementlist = exp_conent_block.css('.exp-content-unorderlist li')
+                if len(elementlist) == 0:
                     elementlist = exp_conent_block.css('.exp-conent-orderlist li')
                 for element in elementlist:
-                    if exp_conent_block_index == 2:
-                        elementObj = dict(text=element.css('.content-list-text p::text').extract_first(default=''),
-                                          images=element.css('.content-list-media img::attr(data-src)').extract())
-
-                        elementObjTra = dict(text=utils.translate_to_es(element.css('.content-list-text p::text').extract_first(default=''),str.strip(response.url)),
-                                          images=utils.base64_image(element.css('.content-list-media img::attr(data-src)').extract(),str.strip(response.url)))
-                    else:
-                        elementObj = dict(text=element.css('.content-list-text::text').extract_first(default=''),
-                                          images=element.css('.content-list-media img::attr(data-src)').extract())
-                        elementObjTra = dict(text=utils.translate_to_es(element.css('.content-list-text::text').extract_first(default=''),str.strip(response.url)),
-                                          images=utils.base64_image(element.css('.content-list-media img::attr(data-src)').extract(),str.strip(response.url)))
+                    etext = ';'.join(element.css('.content-list-text p::text').extract())
+                    if str.strip(etext) == '':
+                        etext = ';'.join(element.css('.content-list-text ::text').extract())
+                    elementObj = dict(text=etext,images=element.css('.content-list-media img::attr(data-src)').extract())
+                    elementObjTra = dict(text=utils.translate_to_es(etext,str.strip(response.url)),
+                                         images=utils.base64_image(element.css('.content-list-media img::attr(data-src)').extract(),str.strip(response.url)))
                     elements.append(elementObj)
                     elementsTra.append(elementObjTra)
                 sublist.append(dict(subtitle=subTitle, element=elements))
@@ -183,7 +209,7 @@ class BaiduJingyanSpider(scrapy.Spider):
             exp_conent_block_index = exp_conent_block_index + 1
         obj = dict(title=exp_title, summary=content_listblock_text, image=content_listblock_images,content =sublist )
         objTra = dict(title=utils.translate_to_es(exp_title,str.strip(response.url)), summary=utils.translate_to_es(content_listblock_text,str.strip(response.url)),
-                   image=utils.base64_image([content_listblock_images],str.strip(response.url)), content=sublistTra)
+                   image=utils.base64_image(content_listblock_images,str.strip(response.url)), content=sublistTra)
         content = json.dumps(obj,ensure_ascii=False)
         contentTra = json.dumps(objTra,ensure_ascii=False)
         item = BaiduJinyanItem()

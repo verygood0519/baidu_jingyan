@@ -44,30 +44,54 @@ class BaiduJinyanMysql(object):
 
     def process_item(self, item, spider):
         # sql语句
-
+        istran = 0;
+        if "翻译失败" not in item['translate']:
+            istran = 1
         # 查询数据
-        sql = "SELECT * FROM funnytable WHERE link = %s"
-        self.cursor.execute(sql,item["url"])
-        if len(self.cursor.fetchall()) > 0 and "翻译失败" not in item['translate']:
-            update_sql = "update funnytable set type = %s,subType = %s,originalText = %s,traText = %s,updateTime = %s where link = %s"
-            try:
-                # 执行更新数据到数据库操作
-                self.cursor.execute(update_sql, (item['type'], item['type_item'], item['original'],
-                                                 item['translate'],time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()),
-                                                 item['url']))
-            except Exception as e:
-                self.save_file('log.txt', "update_sql失败报错：" + item + "\n" + traceback.format_exc())
+        sql = "SELECT * FROM funnytable WHERE link = %s and type = %s and subType = %s"
+        self.conn.ping(reconnect=True)
+        self.cursor.execute(sql,(item["url"],item['type'], item['type_item']))
+        results = self.cursor.fetchall()
+        if len(results) == 1 :
+            if results[0][6] == 0:
+                update_sql = "update funnytable set type = %s,subType = %s,originalText = %s,traText = %s,updateTime = %s,istran = %s where link = %s and type = %s and subType = %s"
+                try:
+                    # 执行更新数据到数据库操作
+                    self.cursor.execute(update_sql, (item['type'], item['type_item'], item['original'],
+                                                     item['translate'],
+                                                     time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()),istran,
+                                                     item['url'],item['type'], item['type_item']))
+                except Exception as e:
+                    self.save_file('log.txt',
+                                   "update_sql失败报错：" + (update_sql, (item['type'], item['type_item'], item['original'],
+                                                                     item['translate'],
+                                                                     time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()),istran,
+                                                                     item['url'])) + "\n" + traceback.format_exc())
 
+                # if "翻译失败" not in item['translate']:
+                #     try:
+                #         # 执行更新数据到数据库操作
+                #         self.cursor.execute(update_sql, (item['type'], item['type_item'], item['original'],
+                #                                          item['translate'],time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()),
+                #                                          item['url']))
+                #     except Exception as e:
+                #         self.save_file('log.txt', "update_sql失败报错：" + (update_sql, (item['type'], item['type_item'], item['original'],
+                #                                          item['translate'],time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()),
+                #                                          item['url'])) + "\n" + traceback.format_exc())
+                # else:
+                #     print(item['translate'])
         else:
             insert_sql = """ 
-            insert into funnytable(type,subType,link,originalText,traText,isRelease,updateTime) VALUES(%s,%s,%s,%s,%s,%s,%s)
+            insert into funnytable(type,subType,link,originalText,traText,istran,updateTime) VALUES(%s,%s,%s,%s,%s,%s,%s)
             """
             try:
                 # 执行插入数据到数据库操作
                 self.cursor.execute(insert_sql, (item['type'], item['type_item'], item['url'], item['original'],
-                                                 item['translate'],'0',time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())))
+                                                 item['translate'],istran,time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())))
             except Exception as e:
-                self.save_file('log.txt', "insert_sql失败报错：" + item + "\n" + traceback.format_exc())
+                self.save_file('log.txt', "insert_sql失败报错：" + (insert_sql, (item['type'], item['type_item'], item['url'], item['original'],
+                                                 item['translate'],istran,time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()))) + "\n"
+                               + traceback.format_exc())
         # 提交，不进行提交无法保存到数据库
         self.conn.commit()
 
